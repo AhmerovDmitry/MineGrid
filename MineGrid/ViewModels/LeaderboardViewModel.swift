@@ -18,6 +18,10 @@ class LeaderboardViewModel: ObservableObject {
     private var cachedEntries: [Difficulty: [LeaderboardEntry]] = [:]
     private let logger: LogService
 
+    /// Инициализатор ViewModel
+    /// - Parameters:
+    ///   - modelContext: Контекст SwiftData для работы с данными
+    ///   - logger: Сервис логирования
     init(modelContext: ModelContext, logger: LogService = AppLogger(category: "LeaderboardViewModel")) {
         self.modelContext = modelContext
         self.logger = logger

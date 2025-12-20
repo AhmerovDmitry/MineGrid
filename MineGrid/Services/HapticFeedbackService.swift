@@ -13,6 +13,7 @@ final class HapticFeedbackService: HapticFeedbackProtocol {
 
     private let impactFeedbackGenerator: UIImpactFeedbackGenerator
 
+    /// Инициализатор сервиса тактильной обратной связи
     init() {
         self.impactFeedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
         prepareGenerators()

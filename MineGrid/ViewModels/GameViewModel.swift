@@ -83,10 +83,12 @@ final class GameViewModel {
     ///   - difficulty: Уровень сложности игры
     ///   - mineGenerator: Сервис генерации мин
     ///   - gameLogic: Сервис игровой логики
+    ///   - gameRules: Сервис правил игры
     ///   - timerService: Сервис таймера
     ///   - gameStorage: Сервис сохранения игр
     ///   - scoreService: Сервис результатов
     ///   - hapticFeedback: Сервис тактильной обратной связи
+    ///   - gameSaveService: Сервис сохранения и загрузки игр
     ///   - logger: Сервис логирования
     init(
         difficulty: Difficulty,
@@ -233,8 +235,8 @@ final class GameViewModel {
     func setupCombineBindings() {
         // Пример использования Combine для реактивного управления состоянием
         // Можно расширить для других свойств
-        // Note: Для использования Combine с @Observable свойствами нужно использовать
-        // дополнительные обертки или перейти на ObservableObject
+        // Note: Для использования Combine с @Observable свойствами необходимо использовать
+        // дополнительные обёртки или перейти на ObservableObject
         logger.debug("Combine bindings setup - ready for reactive state management")
     }
     

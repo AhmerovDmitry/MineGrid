@@ -31,6 +31,7 @@ final class DependencyContainer {
     
     // MARK: - Initialization
     
+    /// Приватный инициализатор контейнера зависимостей
     private init() {
         self.logger = AppLogger(category: "DependencyContainer")
         logger.info("Initializing DependencyContainer")

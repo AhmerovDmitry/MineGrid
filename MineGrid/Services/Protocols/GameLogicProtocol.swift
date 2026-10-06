@@ -30,13 +30,6 @@ protocol GameLogicProtocol {
     ///   - board: Игровое поле
     func floodFill(row: Int, column: Int, board: inout GameBoardModel)
     
-    /// Проверяет условие победы
-    /// - Parameters:
-    ///   - board: Игровое поле
-    ///   - mineCount: Количество мин
-    /// - Returns: true, если игра выиграна
-    func checkWinCondition(board: GameBoardModel, mineCount: Int) -> Bool
-    
     /// Открывает все мины на поле
     /// - Parameter board: Игровое поле
     func revealAllMines(board: inout GameBoardModel)
@@ -50,4 +43,3 @@ enum CellOpenResult {
     case flagged
     case invalidPosition
 }
-

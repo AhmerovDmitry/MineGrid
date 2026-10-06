@@ -20,7 +20,7 @@
 
 Протокол для сервиса логирования, который определяет интерфейс для логирования сообщений.
 
-### 3. `AppLogger` (class)
+### 3. `AppLogger` (`AppLoggerService.swift`)
 
 Реализация `LogService`, которая:
 - Использует OSLog для системного логирования
@@ -83,6 +83,10 @@ class MockLogger: LogService {
 let mockLogger = MockLogger()
 let service = MyService(logger: mockLogger)
 ```
+
+## Privacy
+
+Не логируйте имена игроков, содержимое snapshot и другие пользовательские данные. В Release допускаются только warning/error; перед публикацией нужно перевести error details на typed OSLog privacy вместо прямого `localizedDescription`.
 
 ## Формат логов
 

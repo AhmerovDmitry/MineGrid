@@ -8,33 +8,28 @@
 import Foundation
 import SwiftUI
 import SwiftData
-import Combine
 
 /// ViewModel для управления логикой игры
 @Observable
 final class GameViewModel {
 
-    // MARK: - Combine Properties
-
-    private var cancellables = Set<AnyCancellable>()
-    
     // MARK: - Properties
-    
+
     /// Игровое поле
     var board: GameBoardModel
-    
+
     /// Уровень сложности
     let difficulty: Difficulty
-    
+
     /// Текущее состояние игры
     var gameState: GameState = .notStarted
-    
+
     /// Прошедшее время в секундах
     var elapsedTime: Int = 0
-    
+
     /// Количество установленных флагов
     var flaggedCount: Int = 0
-    
+
     // MARK: - Services
 
     private let mineGenerator: MineGeneratorProtocol
@@ -46,9 +41,9 @@ final class GameViewModel {
     private let hapticFeedback: HapticFeedbackProtocol
     private let gameSaveService: GameSaveServiceProtocol
     private let logger: LogService
-    
+
     // MARK: - Computed Properties
-    
+
     /// Количество оставшихся мин
     var remainingMines: Int {
         difficulty.mineCount - flaggedCount
@@ -63,7 +58,7 @@ final class GameViewModel {
     func calculateCellSize() -> CGFloat {
         let baseCellSize: CGFloat = 30
         let minCellSize: CGFloat = 20
-        
+
         switch board.size {
         case 8:
             return min(25, baseCellSize)
@@ -75,9 +70,9 @@ final class GameViewModel {
             return max(minCellSize, min(baseCellSize, 30))
         }
     }
-    
+
     // MARK: - Initialization
-    
+
     /// Инициализатор ViewModel
     /// - Parameters:
     ///   - difficulty: Уровень сложности игры
@@ -112,14 +107,14 @@ final class GameViewModel {
         self.hapticFeedback = hapticFeedback
         self.gameSaveService = gameSaveService
         self.logger = logger
-        
+
         logger.info("Initializing GameViewModel with difficulty: \(difficulty.rawValue)")
         logger.debug("Board size: \(difficulty.size)×\(difficulty.size), mines: \(difficulty.mineCount)")
-        
+
         self.board = GameBoardModel(size: difficulty.size, mineCount: difficulty.mineCount, logger: logger)
         logger.info("GameViewModel initialized successfully")
     }
-    
+
     /// Инициализатор ViewModel из сохраненной игры
     /// - Parameters:
     ///   - savedGame: Сохраненная игра
@@ -150,6 +145,17 @@ final class GameViewModel {
             return nil
         }
 
+        guard savedGame.boardSize == difficulty.size,
+              savedGame.mineCount == difficulty.mineCount,
+              savedGame.elapsedTime >= 0,
+              (0...difficulty.mineCount).contains(savedGame.flaggedCount),
+              savedGame.cellsData.count <= 2_000_000,
+              let restoredState = GameState(rawValue: savedGame.gameState),
+              restoredState.isActive else {
+            logger.error("Saved game metadata is invalid")
+            return nil
+        }
+
         self.difficulty = difficulty
         self.mineGenerator = mineGenerator
         self.gameLogic = gameLogic
@@ -162,7 +168,7 @@ final class GameViewModel {
         self.gameSaveService = gameSaveService
 
         self.board = GameBoardModel(size: savedGame.boardSize, mineCount: savedGame.mineCount, logger: logger)
-        self.gameState = GameState(rawValue: savedGame.gameState) ?? .notStarted
+        self.gameState = restoredState
         self.elapsedTime = savedGame.elapsedTime
         self.flaggedCount = savedGame.flaggedCount
         self.board.isFirstMove = savedGame.isFirstMove
@@ -185,7 +191,7 @@ final class GameViewModel {
 
         logger.info("GameViewModel initialized from saved game")
     }
-    
+
     // MARK: - Game Control
 
     /// Запускает таймер игры
@@ -229,19 +235,8 @@ final class GameViewModel {
         logger.info("Game reset completed")
     }
 
-    // MARK: - Combine Integration
-
-    /// Настраивает подписки на изменения состояния
-    func setupCombineBindings() {
-        // Пример использования Combine для реактивного управления состоянием
-        // Можно расширить для других свойств
-        // Note: Для использования Combine с @Observable свойствами необходимо использовать
-        // дополнительные обёртки или перейти на ObservableObject
-        logger.debug("Combine bindings setup - ready for reactive state management")
-    }
-    
     // MARK: - Game Actions
-    
+
     /// Открывает ячейку по указанным координатам
     /// - Parameters:
     ///   - row: Номер строки
@@ -251,24 +246,24 @@ final class GameViewModel {
             logger.warning("Invalid position: (\(row), \(column))")
             return
         }
-        
+
         let cell = board.cells[row][column]
-        
+
         // Используем сервис правил для проверки возможности открытия ячейки
         guard gameRules.canOpenCell(cell: cell, gameState: gameState) else {
             logger.debug("Cannot open cell: game is not active or cell is not openable")
             return
         }
-         
+
         logger.debug("Opening cell at (\(row), \(column))")
-         
+
         let result = gameLogic.openCell(
             row: row,
             column: column,
             board: &board,
             mineGenerator: mineGenerator
         )
-         
+
         switch result {
         case .success:
             if gameState == .notStarted {
@@ -277,23 +272,23 @@ final class GameViewModel {
                 startTimer()
             }
             checkWinCondition()
-             
+
         case .mineExploded:
             logger.error("Mine exploded at (\(row), \(column))")
             gameState = .lost
             stopTimer()
-             
+
         case .alreadyOpened:
             logger.debug("Cell already opened at (\(row), \(column))")
-             
+
         case .flagged:
             logger.debug("Cell is flagged at (\(row), \(column))")
-             
+
         case .invalidPosition:
             logger.warning("Invalid position: (\(row), \(column))")
         }
     }
-    
+
     /// Переключает состояние флага на ячейке
     /// - Parameters:
     ///   - row: Номер строки
@@ -303,29 +298,29 @@ final class GameViewModel {
             logger.warning("Invalid position for flag toggle: (\(row), \(column))")
             return
         }
-        
+
         let cell = board.cells[row][column]
-        
+
         // Используем сервис правил для проверки возможности установки флага
         if gameRules.canPlaceFlag(cell: cell, flaggedCount: flaggedCount, maxFlags: difficulty.mineCount) {
-            board.cells[row][column].state = .flagged
-            flaggedCount += 1
+            board.toggleFlag(at: row, column: column)
+            flaggedCount = board.flaggedCellsCount // Синхронизируем с счетчиком
             logger.debug("Flag placed at (\(row), \(column)), total flags: \(flaggedCount)")
             hapticFeedback.triggerHapticFeedback(style: .medium)
         } else if cell.state == .flagged {
-            board.cells[row][column].state = .closed
-            flaggedCount -= 1
+            board.toggleFlag(at: row, column: column)
+            flaggedCount = board.flaggedCellsCount // Синхронизируем с счетчиком
             logger.debug("Flag removed from (\(row), \(column)), total flags: \(flaggedCount)")
             hapticFeedback.triggerHapticFeedback(style: .light)
         } else if cell.state == .opened {
             logger.debug("Cannot toggle flag: cell is already opened")
         }
-         
+
         checkWinCondition()
     }
-    
+
     // MARK: - Win Condition
-    
+
     /// Проверяет условие победы
     private func checkWinCondition() {
         if gameRules.checkWinCondition(board: board, mineCount: difficulty.mineCount) {
@@ -348,7 +343,7 @@ final class GameViewModel {
         gameState = .lost
         stopTimer()
     }
-    
+
     // MARK: - Save/Load
 
     /// Сохраняет текущее состояние игры
@@ -377,7 +372,7 @@ final class GameViewModel {
     ///   - playerName: Имя игрока
     ///   - modelContext: Контекст SwiftData
     func saveResult(playerName: String, modelContext: ModelContext) throws {
-        logger.info("Saving game result for player: \(playerName)")
+        logger.info("Saving game result")
         try scoreService.saveResult(
             playerName: playerName,
             time: elapsedTime,
@@ -394,7 +389,8 @@ final class GameViewModel {
     private func loadCells(from data: Data) -> Bool {
         logger.debug("Loading cells from data (size: \(data.count) bytes, board: \(board.size)×\(board.size))")
 
-        guard let cellsData = gameSaveService.loadCells(from: data) else {
+        guard let cellsData = gameSaveService.loadCells(from: data),
+              cellsData.count == board.size * board.size else {
             logger.error("Failed to decode cells data")
             return false
         }
@@ -402,26 +398,46 @@ final class GameViewModel {
         logger.debug("Decoded \(cellsData.count) cells")
 
         var loadedCount = 0
-        var skippedCount = 0
+        var seenPositions = Set<Int>()
+        var decodedMines = 0
+        var decodedFlags = 0
 
         for cellData in cellsData {
-            guard cellData.row < board.size && cellData.column < board.size else {
-                logger.warning("Cell out of bounds: row=\(cellData.row), column=\(cellData.column), boardSize=\(board.size)")
-                skippedCount += 1
-                continue
+            let position = cellData.row * board.size + cellData.column
+            guard board.isValidPosition(row: cellData.row, column: cellData.column),
+                  seenPositions.insert(position).inserted,
+                  (0...8).contains(cellData.adjacentMines),
+                  let state = CellState(rawValue: cellData.state) else {
+                logger.error("Saved cell data failed validation")
+                return false
             }
+
+            if cellData.isMine { decodedMines += 1 }
+            if state == .flagged { decodedFlags += 1 }
 
             board.cells[cellData.row][cellData.column] = CellModel(
                 row: cellData.row,
                 column: cellData.column,
                 isMine: cellData.isMine,
                 adjacentMines: cellData.adjacentMines,
-                state: CellState(rawValue: cellData.state) ?? .closed
+                state: state
             )
             loadedCount += 1
         }
 
-        logger.info("Loaded \(loadedCount) cells, skipped \(skippedCount)")
+        let expectedMines = board.isFirstMove ? 0 : board.mineCount
+        guard decodedMines == expectedMines, decodedFlags <= board.mineCount else {
+            logger.error("Saved board counters failed validation")
+            return false
+        }
+
+        // Восстанавливаем счетчики после десериализации
+        board.recalculateCounters()
+        logger.info("Loaded \(loadedCount) validated cells, counters: opened=\(board.openedCellsCount), closed=\(board.closedCellsCount), flagged=\(board.flaggedCellsCount)")
+
+        // Синхронизируем flaggedCount в ViewModel
+        self.flaggedCount = board.flaggedCellsCount
+
         return true
     }
 }

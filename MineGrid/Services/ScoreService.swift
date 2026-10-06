@@ -33,10 +33,8 @@ final class ScoreService: ScoreServiceProtocol {
         mineCount: Int,
         modelContext: ModelContext
     ) throws {
-        logger.info("Saving result: player=\(playerName), time=\(time)s, difficulty=\(difficulty.rawValue)")
-        
-        let trimmedName = playerName.trimmingCharacters(in: .whitespaces)
-        let finalName = trimmedName.isEmpty ? "Anonymous" : trimmedName
+        logger.info("Saving result: time=\(time)s, difficulty=\(difficulty.rawValue)")
+        let finalName = playerName.sanitizedPlayerName
         
         let result = GameResult(
             playerName: finalName,
@@ -58,4 +56,3 @@ final class ScoreService: ScoreServiceProtocol {
         }
     }
 }
-

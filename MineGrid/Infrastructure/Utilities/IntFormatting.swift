@@ -8,14 +8,13 @@
 import Foundation
 
 extension Int {
-    /// Форматирует время в виде строки (000, 001, 002...)
+    /// Форматирует время в виде строки без ведущих нулей (1, 2, 3...)
     var formattedTime: String {
-        String(format: "%03d", self)
+        "\(self)"
     }
-    
-    /// Форматирует время с русским суффиксом (например: "010 сек")
+
+    /// Форматирует время с русским суффиксом (например: "10 сек")
     var formattedTimeWithRussianSuffix: String {
         "\(formattedTime) сек"
     }
 }
-

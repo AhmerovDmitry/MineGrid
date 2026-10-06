@@ -23,7 +23,6 @@ final class DependencyContainer {
     
     private var mineGeneratorService: MineGeneratorProtocol
     private var gameLogicService: GameLogicProtocol
-    private var timerService: TimerServiceProtocol
     private var gameStorageService: GameStorageProtocol
     private var scoreService: ScoreServiceProtocol
     private var hapticFeedbackService: HapticFeedbackProtocol
@@ -39,7 +38,6 @@ final class DependencyContainer {
         // Инициализация сервисов
         self.mineGeneratorService = MineGeneratorService(logger: AppLogger(category: "MineGenerator"))
         self.gameLogicService = GameLogicService(logger: AppLogger(category: "GameLogic"))
-        self.timerService = TimerService()
         self.gameStorageService = GameStorageService(logger: AppLogger(category: "GameStorage"))
         self.scoreService = ScoreService(logger: AppLogger(category: "ScoreService"))
         self.hapticFeedbackService = HapticFeedbackService()
@@ -64,8 +62,8 @@ final class DependencyContainer {
     
     /// Возвращает сервис таймера
     func makeTimerService() -> TimerServiceProtocol {
-        logger.debug("Providing TimerService")
-        return timerService
+        logger.debug("Creating session-scoped TimerService")
+        return TimerService()
     }
     
     /// Возвращает сервис сохранения игр

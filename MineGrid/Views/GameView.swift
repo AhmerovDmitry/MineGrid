@@ -29,7 +29,10 @@ struct GameView: View {
     }
     
     var body: some View {
+        #if DEBUG
+        // Логирование рендера только в DEBUG для производительности
         logger.debug("GameView body rendering")
+        #endif
          
         return ZStack {
             VStack(spacing: 0) {
@@ -85,6 +88,7 @@ struct GameView: View {
             Text("\(viewModel.remainingMines)")
                 .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
+                .frame(minWidth: 30, alignment: .trailing) // Фиксируем ширину для стабильности
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -113,6 +117,7 @@ struct GameView: View {
             Text(viewModel.formattedTime)
                 .font(.system(size: 20, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
+                .frame(minWidth: 40, alignment: .trailing) // Фиксируем ширину для 3+ цифр
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -271,7 +276,7 @@ struct GameView: View {
     // MARK: - Private Methods
     
     private func saveResult() {
-        logger.info("Saving game result for player: \(playerName)")
+        logger.info("Saving game result")
         do {
             try viewModel.saveResult(
                 playerName: playerName.sanitizedPlayerName,
@@ -304,16 +309,7 @@ struct GameView: View {
                 logger.error("Failed to save context after saving game", error: error)
             }
         } else {
-            logger.info("Game is finished, deleting saved game")
-            viewModel.deleteSavedGame(modelContext: modelContext)
-            
-            // Убеждаемся, что удаление сохранено в базе данных
-            do {
-                try modelContext.save()
-                logger.info("Saved game deletion successfully persisted")
-            } catch {
-                logger.error("Failed to persist saved game deletion", error: error)
-            }
+            logger.info("Game is finished, no need to save")
         }
         
         viewModel.stopTimer()
@@ -338,15 +334,18 @@ struct GameView: View {
     
     private func handleGameStateChange(_ newState: GameState) {
         if newState.isFinished {
-            logger.info("Game finished, deleting saved game")
-            viewModel.deleteSavedGame(modelContext: modelContext)
-            
-            // Убеждаемся, что удаление сохранено в базе данных
+            logger.info("Game finished with state: \(newState.rawValue), deleting saved game immediately")
             do {
-                try modelContext.save()
-                logger.info("Saved game deletion successfully persisted")
+                let descriptor = FetchDescriptor<SavedGame>()
+                if let savedGame = try modelContext.fetch(descriptor).first {
+                    modelContext.delete(savedGame)
+                    try modelContext.save()
+                    logger.info("Saved game deleted immediately after game finish")
+                } else {
+                    logger.debug("No saved game found to delete")
+                }
             } catch {
-                logger.error("Failed to persist saved game deletion", error: error)
+                logger.error("Failed to delete saved game after finish", error: error)
             }
         }
     }

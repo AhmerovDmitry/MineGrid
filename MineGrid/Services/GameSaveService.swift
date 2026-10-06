@@ -35,8 +35,12 @@ final class GameSaveService: GameSaveServiceProtocol {
     ) {
         logger.info("Saving game state: \(gameState.rawValue)")
 
-        // Удаляем существующую сохраненную игру
-        deleteSavedGame(modelContext: modelContext)
+        // Не сохраняем завершенные игры
+        guard gameState == .playing || gameState == .notStarted else {
+            deleteSavedGame(modelContext: modelContext)
+            logger.debug("Skipping save for finished game: \(gameState.rawValue)")
+            return
+        }
 
         // Сохраняем состояние ячеек
         let cellsData = board.cells.flatMap { row in
@@ -61,22 +65,47 @@ final class GameSaveService: GameSaveServiceProtocol {
             return
         }
 
-        // Создаем новую сохраненную игру
-        let savedGame = SavedGame(
-            difficulty: difficulty.rawValue,
-            boardSize: board.size,
-            mineCount: board.mineCount,
-            gameState: gameState.rawValue,
-            elapsedTime: elapsedTime,
-            flaggedCount: flaggedCount,
-            isFirstMove: board.isFirstMove,
-            cellsData: encodedCellsData,
-            savedDate: Date()
-        )
+        do {
+            let descriptor = FetchDescriptor<SavedGame>()
+            let saves = try modelContext.fetch(descriptor)
+            let savedGame: SavedGame
 
-        // Сохраняем игру в контексте
-        modelContext.insert(savedGame)
-        logger.info("Game saved successfully")
+            if let existing = saves.first {
+                savedGame = existing
+                for duplicate in saves.dropFirst() {
+                    modelContext.delete(duplicate)
+                }
+            } else {
+                savedGame = SavedGame(
+                    difficulty: difficulty.rawValue,
+                    boardSize: board.size,
+                    mineCount: board.mineCount,
+                    gameState: gameState.rawValue,
+                    elapsedTime: elapsedTime,
+                    flaggedCount: flaggedCount,
+                    isFirstMove: board.isFirstMove,
+                    cellsData: encodedCellsData,
+                    savedDate: Date()
+                )
+                modelContext.insert(savedGame)
+            }
+
+            savedGame.difficulty = difficulty.rawValue
+            savedGame.boardSize = board.size
+            savedGame.mineCount = board.mineCount
+            savedGame.gameState = gameState.rawValue
+            savedGame.elapsedTime = max(0, elapsedTime)
+            savedGame.flaggedCount = board.flaggedCellsCount
+            savedGame.isFirstMove = board.isFirstMove
+            savedGame.cellsData = encodedCellsData
+            savedGame.savedDate = Date()
+
+            try modelContext.save()
+            logger.info("Game saved successfully")
+        } catch {
+            modelContext.rollback()
+            logger.error("Failed to persist game", error: error)
+        }
     }
 
     func deleteSavedGame(modelContext: ModelContext) {
@@ -85,10 +114,14 @@ final class GameSaveService: GameSaveServiceProtocol {
         let descriptor = FetchDescriptor<SavedGame>()
         do {
             let savedGames = try modelContext.fetch(descriptor)
+            logger.debug("Fetched \(savedGames.count) saved games for deletion")
             for game in savedGames {
                 modelContext.delete(game)
+                logger.debug("Deleted saved game: \(game.difficulty), state: \(game.gameState)")
             }
-            logger.info("Deleted \(savedGames.count) saved games")
+            // Немедленно сохраняем изменения
+            try modelContext.save()
+            logger.info("Deleted \(savedGames.count) saved games and saved context")
         } catch {
             logger.error("Failed to delete saved games", error: error)
         }

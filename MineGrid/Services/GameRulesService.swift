@@ -30,35 +30,15 @@ final class GameRulesService {
     ///   - mineCount: Количество мин
     /// - Returns: true, если игра выиграна
     func checkWinCondition(board: GameBoardModel, mineCount: Int) -> Bool {
-        let totalCells = board.size * board.size
-        let totalNonMineCells = totalCells - mineCount
-        
-        var openedCount = 0
-        var allMinesFlagged = true
-        
-        // Проверяем все ячейки на поле
-        for row in 0..<board.size {
-            for column in 0..<board.size {
-                let cell = board.cells[row][column]
-                
-                if cell.state == .opened {
-                    openedCount += 1
-                }
-                
-                // Проверяем, все ли мины помечены флагами
-                if cell.isMine && cell.state != .flagged {
-                    allMinesFlagged = false
-                }
-            }
+        guard mineCount == board.mineCount else {
+            logger.warning("Mine count mismatch while checking win condition")
+            return false
         }
-        
-        // Условие победы:
-        // 1. Все не-мины открыты ИЛИ
-        // 2. Все мины помечены флагами
-        let won = openedCount == totalNonMineCells || allMinesFlagged
+
+        let won = board.isWon()
         
         if won {
-            logger.info("Win condition met: opened=openedCount/totalNonMineCells")
+            logger.info("Win condition met")
         }
         
         return won
